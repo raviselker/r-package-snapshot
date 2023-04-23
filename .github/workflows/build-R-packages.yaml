@@ -26,6 +26,7 @@ jobs:
 
     - name: Install R deps
       run: |
+        ls /usr/lib/local
         sudo R --quiet -e "
           source('https://raw.githubusercontent.com/jonathon-love/R-mac-web/master/cran/bin/install.R')
           install.libs(c('fribidi', 'gsl', 'udunits', 'gdal', 'openssl', 'geos', 'protobuf'), os='darwin17')
