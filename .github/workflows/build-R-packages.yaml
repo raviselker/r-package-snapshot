@@ -23,7 +23,7 @@ jobs:
       run: |
         sudo rm -rf /usr/local/lib/lib*
         sudo rm -rf /usr/local/include/*
-        sudo rm -rf /usr/local/bin/*
+        sudo rm -rf /usr/local/bin/gdal-config
 
     - name: Set up R
       uses: r-lib/actions/setup-r@v2
