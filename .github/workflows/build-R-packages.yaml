@@ -18,6 +18,12 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
+  
+    - name: tidy
+      run: |
+        sudo rm -rf /usr/local/lib/lib*
+        sudo rm -rf /usr/local/include/*
+        sudo rm -rf /usr/local/bin/*
 
     - name: Set up R
       uses: r-lib/actions/setup-r@v2
@@ -26,9 +32,6 @@ jobs:
 
     - name: Install R deps
       run: |
-        sudo rm -rf /usr/local/lib/lib*
-        sudo rm -rf /usr/local/include/*
-        sudo rm -rf /usr/local/bin/*
         sudo R --quiet -e "
           source('https://raw.githubusercontent.com/jonathon-love/R-mac-web/master/cran/bin/install.R')
           install.libs(c('fribidi', 'gsl', 'udunits', 'gdal', 'openssl', 'geos', 'protobuf'), os='darwin17')
