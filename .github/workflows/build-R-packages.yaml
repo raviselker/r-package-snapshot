@@ -26,7 +26,7 @@ jobs:
 
     - name: Install R deps
       run: |
-        sudo rm -rf /usr/local/lib*
+        sudo rm -rf /usr/local/lib/lib*
         ls /usr/local/lib
         sudo R --quiet -e "
           source('https://raw.githubusercontent.com/jonathon-love/R-mac-web/master/cran/bin/install.R')
