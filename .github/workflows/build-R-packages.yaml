@@ -14,17 +14,18 @@ jobs:
     env:
       REPO_SNAPSHOT_DATE: "2023-04-07"
       REPO_URL: "https://packagemanager.rstudio.com/cran/2023-04-07"
+      LDFLAGS: -v -L/usr/local/lib
 
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: set env
-      run: echo "R_MAKEVARS_USER=$GITHUB_WORKSPACE/Makeconf" >> $GITHUB_ENV
+#     - name: set env
+#       run: echo "R_MAKEVARS_USER=$GITHUB_WORKSPACE/Makeconf" >> $GITHUB_ENV
 
-    - name: Check
-      run: echo $R_MAKEVARS_USER
+#     - name: Check
+#       run: echo $R_MAKEVARS_USER
 
     - name: tidy
       run: |
