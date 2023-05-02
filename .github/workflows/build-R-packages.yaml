@@ -82,7 +82,13 @@ jobs:
 
         # symlink src/contrib to the binary (some things expect a src)
         mkdir -p ~/git/drat/src
+        rm -f ~/git/drat/src/contrib
         ln -F -s ../bin/macosx/contrib/4.1 ~/git/drat/src/contrib
+        mkdir -p ~/git/drat/bin
+        mkdir -p ~/git/drat/bin/macosx
+        mkdir -p ~/git/drat/bin/macosx/contrib
+        mkdir -p ~/git/drat/bin/macosx/contrib/4.1
+        echo "" >>~/git/drat/bin/macosx/contrib/4.1/PACKAGES
 
     - name: Install drat
       run: |
