@@ -1,0 +1,1 @@
+LDFLAGS = -v -L/usr/local/lib

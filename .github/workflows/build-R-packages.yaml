@@ -9,23 +9,51 @@ name: build-R-packages
 
 jobs:
   build:
-    runs-on: macOS-latest
+    runs-on: macos-11
 
     env:
-      REPO_URL: "https://packagemanager.rstudio.com/all/2021-12-29+Y3JhbiwyOjQ1MjYyMTU7NTA1NEIwRDA/src/contrib"
+      REPO_SNAPSHOT_DATE: "2023-04-07"
+      REPO_URL: "https://packagemanager.rstudio.com/cran/2023-04-07"
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Set up R
-      uses: r-lib/actions/setup-r@v2
-      with:
-        r-version: '4.1.3'
+#     - name: set env
+#       run: echo "R_MAKEVARS_USER=$GITHUB_WORKSPACE/Makeconf" >> $GITHUB_ENV
+
+#     - name: Check
+#       run: echo $R_MAKEVARS_USER
+
+    - name: tidy
+      run: |
+        sudo rm -rf /usr/local/lib/lib*
+        sudo rm -rf /usr/local/lib/pkgconfig/*
+        sudo rm -rf /usr/local/lib/gdalplugins/*
+        sudo rm -rf /usr/local/include/*
+        sudo rm -rf /usr/local/pkg/*
+
+    - name: Install R
+      run: |
+        brew install --cask xquartz
+        curl -L -o R.pkg https://cran.r-project.org/bin/macosx/base/R-4.1.3.pkg
+        sudo installer -pkg R.pkg -target /
+        curl -L -O https://github.com/fxcoudert/gfortran-for-macOS/releases/download/8.2/gfortran-8.2-Mojave.dmg
+        sudo hdiutil attach gfortran-8.2-Mojave.dmg
+        sudo installer -allowUntrusted -dumplog -package /Volumes/gfortran-8.2-Mojave/gfortran-8.2-Mojave/gfortran.pkg -target /
+
+    - name: Install R deps
+      run: |
+        sudo R --quiet -e "
+          source('https://raw.githubusercontent.com/jonathon-love/R-mac-web/master/cran/bin/install.R')
+          install.libs('all', os='darwin17')
+        "
+        sudo rsync -av --no-perms --no-owner --no-group /tmp/usr/local/ /usr/local
 
     - name: Check R version
       run: R.version
       shell: Rscript {0}
+
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -40,6 +68,32 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-venv-
 
+    - name: Install SSH key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        known_hosts: ${{ secrets.KNOWN_HOSTS }}
+        config: ${{ secrets.SSH_CONFIG }}
+
+    - name: Download Repo
+      run: |
+        mkdir -p ~/git/drat
+        rsync -azP repo:${{ secrets.REPO_DIR }}/cran/${{ env.REPO_SNAPSHOT_DATE }}/ ~/git/drat
+
+        # symlink src/contrib to the binary (some things expect a src)
+        mkdir -p ~/git/drat/src
+        rm -f ~/git/drat/src/contrib
+        ln -F -s ../bin/macosx/contrib/4.1 ~/git/drat/src/contrib
+        mkdir -p ~/git/drat/bin
+        mkdir -p ~/git/drat/bin/macosx
+        mkdir -p ~/git/drat/bin/macosx/contrib
+        mkdir -p ~/git/drat/bin/macosx/contrib/4.1
+        echo "" >>~/git/drat/bin/macosx/contrib/4.1/PACKAGES
+
+    - name: Install drat
+      run: |
+        R --quiet -e "install.packages('drat', repo='https://cran.r-project.org')"
+
     - name: Create virtual environment
       run: python -m venv venv
 
@@ -52,7 +106,14 @@ jobs:
     - name: Download and build packages
       run: |
         python -VV
-        python -m generate_package_list packages.txt ${{ env.REPO_URL }} --build
+        python -m generate_package_list packages.txt ${{ env.REPO_URL }} ~/git/drat --build
+
+    - name: Populate Repo
+      run: |
+        R --quiet -e "{ lapply(list.files(pattern='\\\\\\\\.tgz$'), drat::insertPackage); invisible(NULL) }"
+
+    - name: Upload Repo
+      run: rsync -azP --delete ~/git/drat/ repo:${{ secrets.REPO_DIR }}/cran/${{ env.REPO_SNAPSHOT_DATE }}
 
 #    - name: Upload Artifacts
 #      uses: actions/upload-artifact@v2

@@ -93,7 +93,7 @@ class RPackage:
         :param repo_url: Url from repo to download package from
         """
         subprocess.run(
-            f'wget "{repo_url}/{self.full_name}.tar.gz" -O "{self.full_name}.tar.gz"',
+            f'wget "{repo_url}/src/contrib/{self.full_name}.tar.gz" -O "{self.full_name}.tar.gz"',
             shell=True,
             check=True,
         )
@@ -104,6 +104,12 @@ class RPackage:
             f'R CMD INSTALL --build "{self.full_name}.tar.gz"', shell=True, check=True
         )
 
+    def install(self, repo: str) -> None:
+        """Install the R package from a repo"""
+        subprocess.run(
+            f'R --quiet -e "install.packages(\\"{self.name}\\", repos=\\"{repo}\\")"', shell=True, check=True
+        )
+
 
 def main() -> None:
     """Generate a topological dependency list.
@@ -112,11 +118,17 @@ def main() -> None:
     """
     args = _parse_args()
     repo_url = args.url
+    local_repo_path = args.local_repo
     main_dependencies_file_path = args.src
 
     # Generate a list of all packages in the repo
     raw_repo_package_list = _download_raw_repo_package_list(repo_url)
     repo_package_list = _parse_repo_package_list(raw_repo_package_list)
+
+    with open(local_repo_path / "src" / "contrib" / "PACKAGES", "r") as file:
+        local_repo_index = file.read()
+
+    local_package_list = _parse_repo_package_list(local_repo_index)
 
     # Generate a topological list of dependencies (and sub-dependencies)
     # from src file
@@ -127,7 +139,7 @@ def main() -> None:
 
     # Optionally, download and build the dependencies
     if args.build:
-        _download_and_build_dependencies(dependencies, repo_url)
+        _download_and_build_dependencies(dependencies, repo_url, local_package_list, str(local_repo_path))
 
 
 def _parse_args() -> argparse.Namespace:
@@ -143,6 +155,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("src", type=pathlib.Path, help="Path to package list")
     parser.add_argument("url", type=str, help="Url to the repo")
+    parser.add_argument("local_repo", type=pathlib.Path, help="Path to local repo")
     parser.add_argument(
         "-b", "--build", action="store_true", help="Download and build the packages"
     )
@@ -155,7 +168,7 @@ def _download_raw_repo_package_list(url: str) -> str:
     :param url: The url to the repo
     :return: A raw list of all packages in the repo
     """
-    with request.urlopen(f"{url}/PACKAGES") as response:
+    with request.urlopen(f"{url}/src/contrib/PACKAGES") as response:
         return response.read().decode("utf-8")
 
 
@@ -187,7 +200,9 @@ def _generate_full_dependency_list(
     """
 
     with open(main_dependencies_file_path, "r", encoding="utf-8") as main_dependencies:
+
         packages = [package_name.strip() for package_name in main_dependencies]
+
         packages_set = set(packages)
         for package in packages:
             deps = _get_sub_dependencies(package, repo_package_list)
@@ -196,15 +211,15 @@ def _generate_full_dependency_list(
         pkgs_dict = {
             name: repo_package_list[name].deps
             for name in packages_set
-            if name not in R_INCLUDED
+            if (name not in R_INCLUDED) or (name in packages)
         }
 
-        packages = toposort.toposort_flatten(pkgs_dict)
+        packages_all = toposort.toposort_flatten(pkgs_dict)
 
         return [
-            repo_package_list[package]
-            for package in packages
-            if package not in R_INCLUDED
+            repo_package_list[name]
+            for name in packages_all
+            if (name not in R_INCLUDED) or (name in packages)
         ]
 
 
@@ -228,16 +243,20 @@ def _get_sub_dependencies(
 
 
 def _download_and_build_dependencies(
-    package_list: list[RPackage], repo_url: str
+    package_list: list[RPackage], repo_url: str, local_package_list: list[RPackage], local_repo_path: str
 ) -> None:
     """Downloads and builds a list of R packages.
 
     :param package_list: List of packages to build
     :param repo_url: Url of the repo to download packages from
     """
+
     for package in package_list:
-        package.download(repo_url)
-        package.build()
+        if package.name in local_package_list:
+            package.install(f'file:{ local_repo_path }')
+        else:
+            package.download(repo_url)
+            package.build()
 
 
 if __name__ == "__main__":
