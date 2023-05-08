@@ -35,6 +35,7 @@ jobs:
 
     - name: Install R
       run: |
+        brew install --cask xquartz
         curl -L -o R.pkg https://cran.r-project.org/bin/macosx/base/R-4.1.3.pkg
         sudo installer -pkg R.pkg -target /
         curl -L -O https://github.com/fxcoudert/gfortran-for-macOS/releases/download/8.2/gfortran-8.2-Mojave.dmg
