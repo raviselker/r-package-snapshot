@@ -14,8 +14,6 @@ jobs:
     env:
       REPO_SNAPSHOT_DATE: "2023-04-07"
       REPO_URL: "https://packagemanager.rstudio.com/cran/2023-04-07"
-      LDFLAGS: -v -L/usr/local/lib
-
 
     steps:
     - name: Checkout Code
